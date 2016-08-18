@@ -8,23 +8,12 @@ const Point = require('../lib/Point.js');
 const Region = require('../lib/Region.js');
 const RegionVisualizer = require('../lib/RegionVisualizer.js');
 
-const LAT_LONG_PRECISION = 100;
-const REGION_PADDING = 0.1 * LAT_LONG_PRECISION;
-
 var postalToNis = [];
 
-var basepoint = latLongToPoint(50, 4);
+var basepoint = Region.latLongToPoint(50, 4);
 var testpoint = new Point(basepoint.x + 1, basepoint.y + 1);
 //var testpoint = latLongToPoint(51, 4);
 console.log("One degree equals " + haversineDistance(basepoint, testpoint) / 1000 + " km"); // TODO
-
-function latLongToPoint(lat, long) {
-    return new Point(lat * LAT_LONG_PRECISION | 0, long * LAT_LONG_PRECISION | 0);
-}
-
-function pointToLatLong(point) {
-    return [ point.x / LAT_LONG_PRECISION, point.y / LAT_LONG_PRECISION ];
-}
 
 prepareData();
 function prepareData() {
@@ -54,7 +43,7 @@ function getBounds() {
     var parser = csvparse({delimiter: '\t'});
     var input = fs.createReadStream('input_data/towns.tsv');
     var transformer = transform((record, callback) => {
-        var point = latLongToPoint(record[9], record[10]);
+        var point = Region.latLongToPoint(record[9], record[10]);
         min = new Point(Math.min(min.x, point.x), Math.min(min.y, point.y));
         max = new Point(Math.max(max.x, point.x), Math.max(max.y, point.y));
         callback(null);
@@ -67,12 +56,12 @@ function getBounds() {
 
 // Add the NIS codes (translated from postal codes) to the appropriate cell in our region object
 function addRegionCodes(min, max) {
-    var region = new Region(new Point(min.x - REGION_PADDING, min.y - REGION_PADDING), new Point(max.x + REGION_PADDING, max.y + REGION_PADDING));
+    var region = new Region(new Point(min.x - Region.REGION_PADDING, min.y - Region.REGION_PADDING), new Point(max.x + Region.REGION_PADDING, max.y + Region.REGION_PADDING));
 
     var parser = csvparse({delimiter: '\t'})
     var input = fs.createReadStream('input_data/towns.tsv');
     var transformer = transform((record, callback) => {
-        var point = latLongToPoint(record[9], record[10]);
+        var point = Region.latLongToPoint(record[9], record[10]);
         region.addCode(point, postalCodeToNis(record[1]));
         callback(null);
     }, () => {});
@@ -87,8 +76,8 @@ function circleSurfaceToSquareRadius(surface) {
 }
 
 function haversineDistance(point1, point2) {
-    var [lat1, long1] = pointToLatLong(point1);
-    var [lat2, long2] = pointToLatLong(point2);
+    var [lat1, long1] = Region.pointToLatLong(point1);
+    var [lat2, long2] = Region.pointToLatLong(point2);
 
     var dLat = degreesToRadians(lat2 - lat1);
     var dLon = degreesToRadians(long2 - long1);
@@ -172,6 +161,8 @@ function populateRegion(region) {
     input.pipe(parser).pipe(transformer).on('finish', function() {
         setImmediate(() => {
             new RegionVisualizer(region).render();
+            region.exportToFile("region.csv");
+            region.exportCellsToFile("region_cells.csv");
         });
     });
 }
