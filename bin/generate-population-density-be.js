@@ -9,7 +9,7 @@ const Region = require('../lib/Region.js');
 const RegionVisualizer = require('../lib/RegionVisualizer.js');
 
 const LAT_LONG_PRECISION = 100;
-const REGION_PADDING = 1 * LAT_LONG_PRECISION;
+const REGION_PADDING = 0.1 * LAT_LONG_PRECISION;
 
 var postalToNis = [];
 
@@ -87,13 +87,8 @@ function circleSurfaceToSquareRadius(surface) {
 }
 
 function haversineDistance(point1, point2) {
-    // TODO: use destructors: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment
-    var latlong1 = pointToLatLong(point1);
-    var lat1 = latlong1[0];
-    var long1 = latlong1[1];
-    var latlong2 = pointToLatLong(point2);
-    var lat2 = latlong2[0];
-    var long2 = latlong2[1];
+    var [lat1, long1] = pointToLatLong(point1);
+    var [lat2, long2] = pointToLatLong(point2);
 
     var dLat = degreesToRadians(lat2 - lat1);
     var dLon = degreesToRadians(long2 - long1);
@@ -170,7 +165,7 @@ function populateRegion(region) {
 
     input.pipe(parser).pipe(transformer).on('finish', function() {
         setImmediate(() => {
-            // TODO
+            new RegionVisualizer(region).render();
         });
     });
 }
