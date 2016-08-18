@@ -110,20 +110,22 @@ function iterateOverRegion(point_origin, distance, cb) {
     var y_step = [1, -1, 1, -1];
     var loop_phase = 0;
     var point_loop = point_origin;
-    cb(point_origin);
+    cb(point_origin, 0);
     while (loop_phase < 4) {
         point_loop = new Point(point_loop.x + x_step[loop_phase], point_loop.y);
-        if (haversineDistance(point_origin, point_loop) < distance) {
+        var current_distance = haversineDistance(point_origin, point_loop);
+        if (current_distance < distance) {
             // Avoid emitting the same points twice
             if (y_step[loop_phase] > 0 || point_loop.y != point_origin.y) {
-                cb(point_loop);
+                cb(point_loop, current_distance);
             }
         } else {
             point_loop = new Point(point_origin.x, point_loop.y + y_step[loop_phase]);
-            if (haversineDistance(point_origin, point_loop) < distance) {
+            var current_distance = haversineDistance(point_origin, point_loop);
+            if (current_distance < distance) {
                 // Avoid emitting the same points twice
                 if (x_step[loop_phase] > 0 || point_loop.x != point_origin.x) {
-                    cb(point_loop);
+                    cb(point_loop, current_distance);
                 }
             } else {
                 loop_phase++;
@@ -149,15 +151,19 @@ function populateRegion(region) {
             var circle_radius = circleSurfaceToSquareRadius(size_ha); // in meters
 
             // Determine all points in the circle and count them
-            var count = 0;
-            iterateOverRegion(point_origin, circle_radius, function() {
-                count++;
+            //var count = 0;
+            var count_scaled = 0;
+            iterateOverRegion(point_origin, circle_radius, function(point_loop, current_distance) {
+                //count++;
+                count_scaled += ((circle_radius - current_distance) / circle_radius);
             });
 
             // Loop over all points in the circle and assign a value to them
-            var pop_div = pop / count;
-            iterateOverRegion(point_origin, circle_radius, function(point_loop) {
-                region.addValue(point_loop, pop_div);
+            //var pop_div = pop / count;
+            var pop_div_scaled = pop / count_scaled;
+            iterateOverRegion(point_origin, circle_radius, function(point_loop, current_distance) {
+                //region.addValue(point_loop, pop_div);
+                region.addValue(point_loop, pop_div_scaled * ((circle_radius - current_distance) / circle_radius));
             });
         }
         callback(null);
