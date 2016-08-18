@@ -160,6 +160,27 @@ function populateRegion(region) {
 
     input.pipe(parser).pipe(transformer).on('finish', function() {
         setImmediate(() => {
+            tagStops(region);
+        });
+    });
+}
+
+function tagStops(region) {
+    var parser = csvparse({delimiter: ','});
+    var input = fs.createReadStream('input_data/stops.csv');
+    var transformer = transform((record, callback) => {
+        var id = record[0];
+        if (id !== 'stop_id') {
+            var lat = record[2];
+            var long = record[3];
+            var point = Region.latLongToPoint(lat, long);
+            region.addStop(point);
+        }
+        callback(null);
+    }, () => {});
+
+    input.pipe(parser).pipe(transformer).on('finish', function() {
+        setImmediate(() => {
             new RegionVisualizer(region).render();
             region.exportToFile("region.csv");
             region.exportCellsToFile("region_cells.csv");
