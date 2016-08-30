@@ -6,70 +6,12 @@ const transform = require('stream-transform');
 
 const Point = require('../lib/Point.js');
 const Region = require('../lib/Region.js');
+const RegionHelpers = require('../lib/RegionHelpers.js');
 const RegionVisualizer = require('../lib/RegionVisualizer.js');
-
-var postalToNis = [];
 
 var basepoint = Region.latLongToPoint(50, 4);
 var testpoint = new Point(basepoint.x + 1, basepoint.y + 1);
-console.log("One degree equals " + haversineDistance(basepoint, testpoint) / 1000 + " km"); // TODO
-
-function postalCodeToNis(postalCode) {
-    return postalToNis[postalCode];
-}
-
-function circleSurfaceToSquareRadius(surface) {
-    return Math.sqrt(surface / Math.PI);
-}
-
-function haversineDistance(point1, point2) {
-    var [lat1, long1] = Region.pointToLatLong(point1);
-    var [lat2, long2] = Region.pointToLatLong(point2);
-
-    var dLat = degreesToRadians(lat2 - lat1);
-    var dLon = degreesToRadians(long2 - long1);
-
-    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(degreesToRadians(lat1)) *
-        Math.cos(degreesToRadians(lat2)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
-    return 12742000 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); // In meters
-}
-
-function degreesToRadians(x) {
-    return x * Math.PI / 180;
-}
-
-function iterateOverRegion(point_origin, distance, cb) {
-    var x_step = [1, 1, -1, -1];
-    var y_step = [1, -1, 1, -1];
-    var loop_phase = 0;
-    var point_loop = point_origin;
-    cb(point_origin, 0);
-    while (loop_phase < 4) {
-        point_loop = new Point(point_loop.x + x_step[loop_phase], point_loop.y);
-        var current_distance = haversineDistance(point_origin, point_loop);
-        if (current_distance < distance) {
-            // Avoid emitting the same points twice
-            if (y_step[loop_phase] > 0 || point_loop.y != point_origin.y) {
-                cb(point_loop, current_distance);
-            }
-        } else {
-            point_loop = new Point(point_origin.x, point_loop.y + y_step[loop_phase]);
-            var current_distance = haversineDistance(point_origin, point_loop);
-            if (current_distance < distance) {
-                // Avoid emitting the same points twice
-                if (x_step[loop_phase] > 0 || point_loop.x != point_origin.x) {
-                    cb(point_loop, current_distance);
-                }
-            } else {
-                loop_phase++;
-                point_loop = new Point(point_origin.x, point_origin.y);
-            }
-        }
-    }
-}
+console.log("One degree equals " + RegionHelpers.haversineDistance(basepoint, testpoint) / 1000 + " km"); // TODO
 
 function consumeFile(filename, consumer, delimiter) {
     return new Promise((resolve, reject) => {
@@ -87,6 +29,11 @@ function consumeFile(filename, consumer, delimiter) {
 
         input.pipe(parser).pipe(transformer).on('finish', resolve);
     });
+}
+
+var postalToNis = [];
+function postalCodeToNis(postalCode) {
+    return postalToNis[postalCode];
 }
 
 // Read postal code data
@@ -131,21 +78,17 @@ function populateRegion(region) {
         var point_origin = region.getPoint(code);
 
         // Calculate edge points of circle surrounding the town
-        var circle_radius = circleSurfaceToSquareRadius(size_ha); // in meters
+        var circle_radius = RegionHelpers.circleSurfaceToSquareRadius(size_ha); // in meters
 
         // Determine all points in the circle and count them
-        //var count = 0;
         var count_scaled = 0;
-        iterateOverRegion(point_origin, circle_radius, function(point_loop, current_distance) {
-            //count++;
+        RegionHelpers.iterateOverRegion(point_origin, circle_radius, function(point_loop, current_distance) {
             count_scaled += ((circle_radius - current_distance) / circle_radius);
         });
 
         // Loop over all points in the circle and assign a value to them
-        //var pop_div = pop / count;
         var pop_div_scaled = pop / count_scaled;
-        iterateOverRegion(point_origin, circle_radius, function(point_loop, current_distance) {
-            //region.addValue(point_loop, pop_div);
+        RegionHelpers.iterateOverRegion(point_origin, circle_radius, function(point_loop, current_distance) {
             region.addValue(point_loop, pop_div_scaled * ((circle_radius - current_distance) / circle_radius));
         });
     }, ';').then(() => region);
