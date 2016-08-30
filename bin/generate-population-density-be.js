@@ -175,13 +175,52 @@ function tagStops(region) {
             var long = record[3];
             var point = Region.latLongToPoint(lat, long);
             region.addStop(point);
+            try {
+                region.addCode(point, "stop_" + id);
+            } catch (e) {}
         }
         callback(null);
     }, () => {});
 
     input.pipe(parser).pipe(transformer).on('finish', function() {
         setImmediate(() => {
-            new RegionVisualizer(region).render();
+            addTrips(region);
+        });
+    });
+}
+
+var trips = [];
+var lastTripData = {};
+function addTrips(region) {
+    var parser = csvparse({delimiter: ','});
+    var input = fs.createReadStream('input_data/stop_times.csv');
+    var transformer = transform((record, callback) => {
+        var id = record[0];
+        if (id !== 'stop_id') {
+            var tripId = record[0];
+            var stopId = record[3];
+            var sequence = record[4];
+            if (stopId.indexOf(':') > 0) stopId = stopId.substr(0, stopId.indexOf(':'));
+            if (!lastTripData[tripId]) {
+                lastTripData[tripId] = { stopId: stopId, sequence: sequence, passed: [] };
+            } else if (lastTripData[tripId].sequence < sequence && lastTripData[tripId].passed.indexOf(stopId) < 0) {
+                var startStopId = lastTripData[tripId].stopId;
+                var endStopId = stopId;
+                var trip = { from: region.getPoint("stop_" + startStopId), to: region.getPoint("stop_" + endStopId) };
+                if (trip.from && trip.to) {
+                    trips.push(trip);
+                }
+                lastTripData[tripId].stopId = stopId;
+                lastTripData[tripId].sequence = sequence;
+                lastTripData[tripId].passed.push(startStopId);
+            }
+        }
+        callback(null);
+    }, () => {});
+
+    input.pipe(parser).pipe(transformer).on('finish', function() {
+        setImmediate(() => {
+            new RegionVisualizer(region, trips).render();
             region.exportToFile("region.csv");
             region.exportCellsToFile("region_cells.csv");
         });
