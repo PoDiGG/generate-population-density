@@ -145,6 +145,7 @@ prepareData()
         new RegionVisualizer(region, trips).render();
         region.exportToFile("region.csv");
         region.exportCellsToFile("region_cells.csv");
+        region.exportEdgesToFile("region_edges.csv", trips);
     })
     .catch(function(error) {
         console.error(error.stack);
