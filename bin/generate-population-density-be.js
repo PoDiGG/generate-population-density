@@ -115,6 +115,8 @@ function addTrips(region) {
 
     return consumeFile('input_data/stop_times.csv', (record) => {
         var tripId = record[0];
+        var arrivalTime = record[1];
+        var departureTime = record[2];
         var stopId = record[3];
         var sequence = record[4];
         if (stopId.indexOf(':') > 0) stopId = stopId.substr(0, stopId.indexOf(':'));
@@ -123,7 +125,13 @@ function addTrips(region) {
         } else if (lastTripData[tripId].sequence < sequence && lastTripData[tripId].passed.indexOf(stopId) < 0) {
             var startStopId = lastTripData[tripId].stopId;
             var endStopId = stopId;
-            var trip = { from: region.getPoint("stop_" + startStopId), to: region.getPoint("stop_" + endStopId) };
+            var trip = {
+                tripId: tripId,
+                from: region.getPoint("stop_" + startStopId),
+                to: region.getPoint("stop_" + endStopId),
+                arrivalTime: arrivalTime,
+                departureTime: departureTime
+            };
             if (trip.from && trip.to) {
                 trips.push(trip);
             }
