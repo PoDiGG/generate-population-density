@@ -18,11 +18,16 @@ function consumeFile(filename, consumer, delimiter) {
         var parser = csvparse({delimiter: delimiter || ','});
         var input = fs.createReadStream(filename);
         var first = true;
+        var colnames = null;
         var transformer = transform((record, callback) => {
             if (first) {
                 first = false;
+                colnames = record;
             } else {
-                consumer(record);
+                consumer(record, colnames.reduce((acc, colname, i) => {
+                    acc[colname] = record[i];
+                    return acc;
+                }, {}));
             }
             callback(null);
         }, reject);
@@ -59,6 +64,7 @@ function getBounds() {
 
 // Add the NIS codes (translated from postal codes) to the appropriate cell in our region object
 function addRegionCodes(min, max) {
+    console.log("adding region codes...");
     var region = new Region(new Point(min.x - Region.REGION_PADDING, min.y - Region.REGION_PADDING), new Point(max.x + Region.REGION_PADDING, max.y + Region.REGION_PADDING));
 
     return consumeFile('input_data/towns.tsv', (record) => {
@@ -69,6 +75,7 @@ function addRegionCodes(min, max) {
 
 // Assign values to our region
 function populateRegion(region) {
+    console.log("populating region...");
     postalToNis = null; // Memory cleanup.
 
     return consumeFile('input_data/population.csv', (record) => {
@@ -95,25 +102,28 @@ function populateRegion(region) {
 }
 
 // Add stops to region
-function tagStops(region) {
-    return consumeFile('input_data/stops.csv', (record) => {
-        var id = record[0];
-        var lat = record[2];
-        var long = record[3];
+function tagStops(region, file) {
+    console.log("tagging stops...");
+    return consumeFile(file, (record, recordNamed) => {
+        var id = recordNamed.stop_id;
+        var lat = recordNamed.stop_lat;
+        var long = recordNamed.stop_lon;
         var point = Region.latLongToPoint(lat, long);
         region.addStop(point);
         try {
             region.addCode(point, "stop_" + id);
-        } catch (e) {}
+        } catch (e) {
+        }
     }).then(() => region);
 }
 
 // Read trips
-function addTrips(region) {
-    var trips = [];
+function addTrips(region, trips, file) {
+    console.log("adding trips...");
+    if (!trips) trips = [];
     var lastTripData = {};
 
-    return consumeFile('input_data/stop_times.csv', (record) => {
+    return consumeFile(file, (record) => {
         var tripId = record[0];
         var arrivalTime = record[1];
         var departureTime = record[2];
@@ -142,19 +152,46 @@ function addTrips(region) {
     }).then(() => { return { region: region, trips: trips} });
 }
 
-// Run all the things
-prepareData()
-    .then(() => getBounds())
-    .then(({ min, max }) => addRegionCodes(min, max))
-    .then((region) => populateRegion(region))
-    .then((region) => tagStops(region))
-    .then((region) => addTrips(region))
-    .then(({ region, trips }) => {
-        new RegionVisualizer(region, trips).render();
-        region.exportToFile("region.csv");
-        region.exportCellsToFile("region_cells.csv");
-        region.exportEdgesToFile("region_edges.csv", trips);
-    })
-    .catch(function(error) {
-        console.error(error.stack);
-    });
+function exportData(region, trips) {
+    console.log("exporting...");
+    new RegionVisualizer(region, trips).render();
+    region.exportToFile("region.csv");
+    region.exportCellsToFile("region_cells.csv");
+    region.exportEdgesToFile("region_edges.csv", trips);
+}
+
+if (process.argv.length < 3) {
+    throw new Error('Please provide a parameter to either generate \'bus\' or \'train\' data.');
+}
+var type = process.argv[2];
+if (type === 'bus') {
+    // Run all the things
+    prepareData()
+      .then(() => getBounds())
+      .then(({ min, max }) => addRegionCodes(min, max))
+      .then((region) => populateRegion(region))
+      .then((region) => tagStops(region, 'input_data_bus/stops_delijn.csv'))
+      .then((region) => tagStops(region, 'input_data_bus/stops_tec.csv'))
+      .then((region) => tagStops(region, 'input_data_bus/stops_mivb.csv'))
+      .then((region) => addTrips(region, null, 'input_data_bus/stop_times_delijn.csv'))
+      .then(({ region, trips }) => addTrips(region, trips, 'input_data_bus/stop_times_tec.csv'))
+      .then(({ region, trips }) => addTrips(region, trips, 'input_data_bus/stop_times_mivb.csv'))
+      .then(({ region, trips }) => exportData(region, trips))
+      .catch(function(error) {
+          console.error(error.stack);
+      });
+} else if (type === 'train') {
+    // Run all the things
+    prepareData()
+      .then(() => getBounds())
+      .then(({ min, max }) => addRegionCodes(min, max))
+      .then((region) => populateRegion(region))
+      .then((region) => tagStops(region, 'input_data_train/stops.csv'))
+      .then((region) => addTrips(region, null, 'input_data_train/stop_times.csv'))
+      .then(({ region, trips }) => exportData(region, trips))
+      .catch(function(error) {
+          console.error(error.stack);
+      });
+} else {
+    throw new Error('No generator for the type \'' + type + '\' exists.');
+}
