@@ -106,6 +106,7 @@ function tagStops(region, file) {
     console.log("tagging stops...");
     return consumeFile(file, (record, recordNamed) => {
         var id = recordNamed.stop_id;
+        if (id.indexOf(':') > 0) id = id.substr(0, id.indexOf(':'));
         var lat = recordNamed.stop_lat;
         var long = recordNamed.stop_lon;
         var point = Region.latLongToPoint(lat, long);
@@ -123,12 +124,12 @@ function addTrips(region, trips, file) {
     if (!trips) trips = [];
     var lastTripData = {};
 
-    return consumeFile(file, (record) => {
-        var tripId = record[0];
-        var arrivalTime = record[1];
-        var departureTime = record[2];
-        var stopId = record[3];
-        var sequence = record[4];
+    return consumeFile(file, (record, recordNamed) => {
+        var tripId = recordNamed.trip_id;
+        var arrivalTime = recordNamed.arrival_time;
+        var departureTime = recordNamed.departure_time;
+        var stopId = recordNamed.stop_id;
+        var sequence = recordNamed.stop_sequence;
         if (stopId.indexOf(':') > 0) stopId = stopId.substr(0, stopId.indexOf(':'));
         if (!lastTripData[tripId]) {
             lastTripData[tripId] = { stopId: stopId, sequence: sequence, passed: [] };
