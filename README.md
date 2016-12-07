@@ -10,19 +10,27 @@ population density and indicates whether or not it has a stop.
 levels are indicated for each cell with a color between
 white, red and black (going from low to high). Green dots indicate stops.
 
-Input data:
+Input data BE:
 * `population.csv`: Population+size+density of Belgian towns: http://data.gov.be/en/node/8176
 * `postalcodes.tsv`: Postal codes of all Belgian towns with their Dutch name and gewest. http://data.gov.be/en/node/8614
 * `towns.csv`: Location (long,lat) of Belgian cities: http://download.geonames.org/export/zip/
 
-Input data train: 
-* `stop.csv`: Stops file from [NMBS GTFS dataset](http://gtfs.irail.be/nmbs)
-* `stop_times_delijn.csv`: Stop_times file from [NMBS GTFS dataset](http://gtfs.irail.be/nmbs)
+Input data train BE: 
+* `input_data_train/stop.csv`: Stops file from [NMBS GTFS dataset](http://gtfs.irail.be/nmbs)
+* `input_data_train/stop_times.csv`: Stop_times file from [NMBS GTFS dataset](http://gtfs.irail.be/nmbs)
 
-Input data bus: 
-* `stop.csv`: Stops file from [De Lijn GTFS dataset](http://gtfs.irail.be/de-lijn/de_lijn-gtfs.zip)
-* `stop_2.csv`: Stops file from [MIVB GTFS dataset](http://gtfs.irail.be/mivb/mivb-gtfs.zip)
-* `stop_3.csv`: Stops file from [TEC GTFS dataset](http://gtfs.irail.be/tec/tec-gtfs.zip)
-* `stop_times_delijn.csv`: Stop_times file from [De Lijn GTFS dataset](http://gtfs.irail.be/de-lijn/de_lijn-gtfs.zip)
-* `stop_times_tec.csv`: Stop_times file from [TEC GTFS dataset](http://gtfs.irail.be/tec/tec-gtfs.zip)
-* `stop_times_mivb.csv`: Stop_times file from [MIVB GTFS dataset](http://gtfs.irail.be/mivb/mivb-gtfs.zip)
+Input data bus BE: 
+* `input_data_bus/stops_deliin.csv`: Stops file from [De Lijn GTFS dataset](http://gtfs.irail.be/de-lijn/de_lijn-gtfs.zip)
+* `input_data_bus/stop_mivb.csv`: Stops file from [MIVB GTFS dataset](http://gtfs.irail.be/mivb/mivb-gtfs.zip)
+* `input_data_bus/stop_tec.csv`: Stops file from [TEC GTFS dataset](http://gtfs.irail.be/tec/tec-gtfs.zip)
+* `input_data_bus/stop_times_delijn.csv`: Stop_times file from [De Lijn GTFS dataset](http://gtfs.irail.be/de-lijn/de_lijn-gtfs.zip)
+* `input_data_bus/stop_times_mivb.csv`: Stop_times file from [MIVB GTFS dataset](http://gtfs.irail.be/mivb/mivb-gtfs.zip)
+* `input_data_bus/stop_times_tec.csv`: Stop_times file from [TEC GTFS dataset](http://gtfs.irail.be/tec/tec-gtfs.zip)
+
+Input data NL:
+* `input_data_train_nl/Grid_ETRS89_LAEA_NL_1K_*`: Netherlands shapefile: http://www.efgs.info/data/
+* `input_data_train_nl/GEOSTAT_grid_POP_1K_NL_2012.csv`: Population per cell in shapefile: http://www.efgs.info/data/national/
+
+Input data train NL: 
+* `input_data_train_nl/stop.csv`: Stops file from [NS GTFS dataset](http://www.gtfs-data-exchange.com/agency/ns/)
+* `input_data_train_nl/stop_times.csv`: Stop_times file from [NS GTFS dataset](http://www.gtfs-data-exchange.com/agency/ns/)
