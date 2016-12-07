@@ -3,6 +3,8 @@
 const fs = require('fs');
 const csvparse = require('csv-parse');
 const transform = require('stream-transform');
+const shapefile = require('shapefile');
+const proj4 = require('proj4');
 
 const Point = require('../lib/Point.js');
 const Region = require('../lib/Region.js');
@@ -62,15 +64,23 @@ function getBounds() {
     }, '\t').then(() => { return { min: min, max: max } });
 }
 
+function makeRegion(min, max) {
+    return new Promise((resolve, reject) => {
+        var region = new Region(new Point(min.x - Region.REGION_PADDING, min.y - Region.REGION_PADDING), new Point(max.x + Region.REGION_PADDING, max.y + Region.REGION_PADDING));
+        resolve(region);
+    });
+}
+
 // Add the NIS codes (translated from postal codes) to the appropriate cell in our region object
 function addRegionCodes(min, max) {
     console.log("adding region codes...");
-    var region = new Region(new Point(min.x - Region.REGION_PADDING, min.y - Region.REGION_PADDING), new Point(max.x + Region.REGION_PADDING, max.y + Region.REGION_PADDING));
-
-    return consumeFile('input_data/towns.tsv', (record) => {
-        var point = Region.latLongToPoint(record[9], record[10]);
-        region.addCode(point, postalCodeToNis(record[1]));
-    }, '\t').then(() => region);
+    return makeRegion()
+      .then((region) => {
+          consumeFile('input_data/towns.tsv', (record) => {
+              var point = Region.latLongToPoint(record[9], record[10]);
+              region.addCode(point, postalCodeToNis(record[1]));
+          }, '\t').then(() => region)
+      });
 }
 
 // Assign values to our region
@@ -104,18 +114,20 @@ function populateRegion(region) {
 // Add stops to region
 function tagStops(region, file) {
     console.log("tagging stops...");
+    var cnt = 0;
     return consumeFile(file, (record, recordNamed) => {
         var id = recordNamed.stop_id;
-        if (id.indexOf(':') > 0) id = id.substr(0, id.indexOf(':'));
+        if (id.indexOf(':') > 4) id = id.substr(0, id.indexOf(':'));
         var lat = recordNamed.stop_lat;
         var long = recordNamed.stop_lon;
         var point = Region.latLongToPoint(lat, long);
         region.addStop(point);
         try {
             region.addCode(point, "stop_" + id);
+            cnt++;
         } catch (e) {
         }
-    }).then(() => region);
+    }).then(() => { console.log("tagged: " + cnt); return region;});
 }
 
 // Read trips
@@ -130,7 +142,7 @@ function addTrips(region, trips, file) {
         var departureTime = recordNamed.departure_time;
         var stopId = recordNamed.stop_id;
         var sequence = recordNamed.stop_sequence;
-        if (stopId.indexOf(':') > 0) stopId = stopId.substr(0, stopId.indexOf(':'));
+        if (stopId.indexOf(':') > 4) stopId = stopId.substr(0, stopId.indexOf(':'));
         if (!lastTripData[tripId]) {
             lastTripData[tripId] = { stopId: stopId, sequence: sequence, passed: [] };
         } else if (lastTripData[tripId].sequence < sequence && lastTripData[tripId].passed.indexOf(stopId) < 0) {
@@ -161,6 +173,49 @@ function exportData(region, trips) {
     region.exportEdgesToFile("region_edges.csv", trips);
 }
 
+function readShapeFile(shapefile_path, cb) {
+    var projection_from = fs.readFileSync(shapefile_path + '.prj', 'utf8');
+    var projection_to = '+title=WGS 84 (long/lat) +proj=longlat +ellps=WGS84 +datum=WGS84 +units=degrees';
+    var popData = {};
+    return consumeFile('input_data_train_nl/shapefile-nl/GEOSTAT_grid_POP_1K_NL_2012.csv', (record) => {
+        popData[record[0]] = record[5];
+    }, ';')
+        .then(() => shapefile.open(shapefile_path))
+        .then(source => source.read()
+        .then(function log(result) {
+            if (result.done) return;
+            //console.log(result.value.geometry.coordinates[0]);
+            if (result.value.properties) {
+                var cellId = result.value.properties.GRD_NEWID;
+                //var scaledValue = result.value.properties.ind / result.value.geometry.coordinates[0].length;
+                var coordinates = result.value.geometry.type === 'Polygon' ? result.value.geometry.coordinates[0] : result.value.geometry.coordinates[0][0];
+                var scaledValue = (popData[cellId] || 0) / coordinates.length;
+                for (var coord of coordinates) {
+                    var out = proj4(projection_from, projection_to, coord);
+                    var lat = parseFloat(out[1]);
+                    var lon = parseFloat(out[0]);
+
+                    if (lat && lon) {
+                        cb(lat, lon, scaledValue);
+                    } else {
+                        console.log(result.value.geometry); // TODO
+                    }
+                }
+            }
+            // TODO: problem: part of France is skipped (corrupt dataset?)
+            //if (temp_counter++ === 10000) return;// TODO
+            return source.read().then(log);
+        }))
+      .catch(error => console.error(error.stack));
+}
+
+function populateRegionFromShapefile(shapefile_path, region) {
+    return readShapeFile(shapefile_path, (lat, lon, value) => {
+        var point = Region.latLongToPoint(lat, lon);
+        region.addValue(point, value);
+    }).then(() => region);
+}
+
 if (process.argv.length < 3) {
     throw new Error('Please provide a parameter to either generate \'bus\' or \'train\' data.');
 }
@@ -174,8 +229,8 @@ if (type === 'bus') {
       .then((region) => tagStops(region, 'input_data_bus/stops_delijn.csv'))
       .then((region) => tagStops(region, 'input_data_bus/stops_tec.csv'))
       .then((region) => tagStops(region, 'input_data_bus/stops_mivb.csv'))
-      .then((region) => addTrips(region, null, 'input_data_bus/stop_times_delijn.csv'))
-      .then(({ region, trips }) => addTrips(region, trips, 'input_data_bus/stop_times_tec.csv'))
+      .then((region) => addTrips(region, null, 'input_data_bus/stop_times_tec.csv'))
+      .then(({ region, trips }) => addTrips(region, trips, 'input_data_bus/stop_times_delijn.csv'))
       .then(({ region, trips }) => addTrips(region, trips, 'input_data_bus/stop_times_mivb.csv'))
       .then(({ region, trips }) => exportData(region, trips))
       .catch(function(error) {
@@ -189,6 +244,27 @@ if (type === 'bus') {
       .then((region) => populateRegion(region))
       .then((region) => tagStops(region, 'input_data_train/stops.csv'))
       .then((region) => addTrips(region, null, 'input_data_train/stop_times.csv'))
+      .then(({ region, trips }) => exportData(region, trips))
+      .catch(function(error) {
+          console.error(error.stack);
+      });
+} else if (type === 'train_nl') {
+    // Run all the things
+    var min = new Point(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+    var max = new Point(0, 0);
+    //var shapefile_path = 'input_data_train_fr/shapefile-fr/Grid_ETRS89_LAEA_FR_1K';
+    var shapefile_path = 'input_data_train_nl/shapefile-nl/Grid_ETRS89_LAEA_NL_1K';
+    readShapeFile(shapefile_path, (lat, lon, value) => {
+        var point = Region.latLongToPoint(lat, lon);
+        min.x = Math.min(min.x, point.x);
+        max.x = Math.max(max.x, point.x);
+        min.y = Math.min(min.y, point.y);
+        max.y = Math.max(max.y, point.y);
+    })
+      .then(() => makeRegion(min, max))
+      .then((region) => populateRegionFromShapefile(shapefile_path, region))
+      .then((region) => tagStops(region, 'input_data_train_nl/stops.csv'))
+      .then((region) => addTrips(region, null, 'input_data_train_nl/stop_times.csv'))
       .then(({ region, trips }) => exportData(region, trips))
       .catch(function(error) {
           console.error(error.stack);
