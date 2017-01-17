@@ -1,4 +1,1 @@
-input_data_bus/stop_times_delijn.csv filter=lfs diff=lfs merge=lfs -text
-input_data_bus/stop_times_mivb.csv filter=lfs diff=lfs merge=lfs -text
-input_data_bus/stop_times_tec.csv filter=lfs diff=lfs merge=lfs -text
-*.zip filter=lfs diff=lfs merge=lfs -text
+input_data.zip filter=lfs diff=lfs merge=lfs -text
