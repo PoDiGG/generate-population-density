@@ -43,3 +43,9 @@ which respectively creates region files for the Belgian bus and railway company 
 ### Input data train NL 
 * `input_data_train_nl/stop.csv`: Stops file from [NS GTFS dataset](http://www.gtfs-data-exchange.com/agency/ns/)
 * `input_data_train_nl/stop_times.csv`: Stop_times file from [NS GTFS dataset](http://www.gtfs-data-exchange.com/agency/ns/)
+
+# License
+The PoDiGG generator is written by [Ruben Taelman](http://rubensworks.net/).
+
+This code is copyrighted by [Ghent University – imec](http://idlab.ugent.be/)
+and released under the [MIT license](http://opensource.org/licenses/MIT).
