@@ -1,6 +1,6 @@
-Population density dataset creator for Belgium.
+# Population density file generator
 
-This tool creates 4 files:
+`bin/generate-population-density-be.js` creates 4 files:
 * `region_cells.csv`: CSV-formatted
 cells of the Belgium region where each cell contains the
 population density and indicates whether or not it has a stop.
@@ -11,6 +11,9 @@ This file should be used during PoDiGG evaluation.
 * `region.csv`: Visualization of the region. Population distribution
 levels are indicated for each cell with a color between
 white, red and black (going from low to high). Green dots indicate stops.
+
+This tool accepts the following parameters `bus`, `train` or `train_nl`,
+which respectively creates region files for the Belgian bus and railway company and the Dutch railway company.
 
 ## Input data
 
