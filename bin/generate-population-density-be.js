@@ -74,9 +74,9 @@ function makeRegion(min, max) {
 // Add the NIS codes (translated from postal codes) to the appropriate cell in our region object
 function addRegionCodes(min, max) {
     console.log("adding region codes...");
-    return makeRegion()
+    return makeRegion(min, max)
       .then((region) => {
-          consumeFile('input_data/towns.tsv', (record) => {
+          return consumeFile('input_data/towns.tsv', (record) => {
               var point = Region.latLongToPoint(record[9], record[10]);
               region.addCode(point, postalCodeToNis(record[1]));
           }, '\t').then(() => region)
